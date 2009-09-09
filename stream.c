@@ -8,8 +8,9 @@ void stream_decode(const unsigned char *buffer, size_t bufsz)
 	int cur, i;
 	int percycle = 0;
 
-	for (cur = 0; cur < bufsz; cur++) {
+	for (cur = 0; cur < bufsz;) {
 		int lastincycle;
+		int res;
 
 		DBG("# Got %02x:\n", buffer[cur]);
 
@@ -22,10 +23,22 @@ void stream_decode(const unsigned char *buffer, size_t bufsz)
 				break;
 			}
 		}
+
 		if (!pkttypes[i]) {
-			DBG("## assuming branch address\n");
+			ERR("packet header is not recognized: %x\n", buffer[cur]);
+			return;
 		}
 
+		res = pkttypes[i]->decode(&buffer[cur], 0);
+		if (res <= 0) {
+			ERR("failed to decode packet: %x", buffer[cur]);
+			for (i = 0; i < -res; i++)
+				ERR("%x", buffer[cur + i]);
+			ERR("\n");
+			return;
+		}
+
+		cur += res;
 		if (lastincycle) {
 			DBG("--- packets in this cycle: %d\n", percycle);
 			percycle = 0;

@@ -44,7 +44,7 @@ static struct pkttype *pkttypes_v3[] = {
 
 DECL_DECODE_FN(branch_address)
 {
-	return 0;
+	return 1;
 }
 
 FALLBACK_DECODE_FN(alignment_sync);

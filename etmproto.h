@@ -9,15 +9,15 @@ struct pkttype {
 	int type;
 	const char *name;
 	int (*skip_bytes)(pkt_t);
-	int (*decode)(pkt_t *, int);
+	int (*decode)(const pkt_t *, int);
 };
 
 #define DECODE_FN_NAME(__name) \
 	pt_ ## __name ## _decode
 #define DECL_DECODE_FN(__name) \
-	static int DECODE_FN_NAME(__name) (pkt_t *stream, int npkts)
+	static int DECODE_FN_NAME(__name) (const pkt_t *stream, int npkts)
 #define FALLBACK_DECODE_FN(__name) \
-	DECL_DECODE_FN(__name) { return 0; }
+	DECL_DECODE_FN(__name) { return 1; }
 
 #define PKTTYPE_NAME(__name, __ver) \
 	pkttype_ ## v ## __ver ## _ ## __name
