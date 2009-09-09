@@ -1,6 +1,6 @@
 CFLAGS := -g3 -O0
 LDFLAGS :=
-SRCS := etmtest.c stream.c
+SRCS := etmtest.c stream.c etm_v3.c
 OBJS := $(SRCS:.c=.o)
 
 CC ?= $(CROSS)gcc
