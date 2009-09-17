@@ -12,7 +12,7 @@ void stream_decode(const unsigned char *buffer, size_t bufsz)
 		int lastincycle;
 		int res;
 
-		DBG("# Got %02x:\n", buffer[cur]);
+		DBG("# Got %02x [off=%d]:\n", buffer[cur], cur);
 
 		lastincycle = !(buffer[cur] & 0x80);
 		percycle += !lastincycle;
