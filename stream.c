@@ -1,39 +1,41 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "output.h"
+#include "stream.h"
 #include "etmproto.h"
 
-void stream_decode(const unsigned char *buffer, size_t bufsz)
+void stream_decode(struct stream *stream)
 {
 	int cur, i;
 	int percycle = 0;
 
-	for (cur = 0; cur < bufsz;) {
+	for (cur = 0; cur < stream->buffer_len;) {
 		int lastincycle;
 		int res;
+		unsigned char c = stream->buffer[cur];
 
-		DBG("# Got %02x [off=%d]:\n", buffer[cur], cur);
+		DBG("# Got %02x [off=%d]:\n", c, cur);
 
-		lastincycle = !(buffer[cur] & 0x80);
+		lastincycle = !(c & 0x80);
 		percycle += !lastincycle;
 
 		for (i = 0; pkttypes[i]; i++) {
-			if ((buffer[cur] & pkttypes[i]->mask) == pkttypes[i]->val) {
+			if ((c & pkttypes[i]->mask) == pkttypes[i]->val) {
 				DBG("## type: %s\n", pkttypes[i]->name);
 				break;
 			}
 		}
 
 		if (!pkttypes[i]) {
-			ERR("packet header is not recognized: %x\n", buffer[cur]);
+			ERR("packet header is not recognized: %x\n", c);
 			return;
 		}
 
-		res = pkttypes[i]->decode(&buffer[cur], 0);
+		res = pkttypes[i]->decode(&stream->buffer[cur], stream);
 		if (res <= 0) {
-			ERR("failed to decode packet: %x", buffer[cur]);
+			ERR("failed to decode packet: %x", c);
 			for (i = 0; i < -res; i++)
-				ERR("%x", buffer[cur + i]);
+				ERR("%x", stream->buffer[cur + i]);
 			ERR("\n");
 			return;
 		}

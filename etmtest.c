@@ -4,25 +4,60 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "output.h"
+#include "stream.h"
 
 static const char *file_in;
 static unsigned char *buffer_in;
 static int buffer_len;
+static struct stream stream;
 
-int main(int argc, const char **argv)
+static const struct option options[] = {
+	{ "input",			1, 0, 'i' },
+	{ "context",			1, 0, 'c' },
+	{ "force-cycle-accurate",	0, 0, 'C' },
+	{ NULL,				0, 0, 0   },
+};
+
+static const char *optstr = "i:c:C";
+
+int main(int argc, char *const argv[])
 {
 	FILE *f;
 	struct stat sb;
-	int r;
+	int r, loptidx, c;
 	unsigned char *p;
 
-	if (argc != 2) {
-		ERR("Need a trace buffer\n");
+	for (;;) {
+		c = getopt_long(argc, argv, optstr, options, &loptidx);
+		if (c == -1)
+			break;
+
+		switch (c) {
+			case 'i':
+				file_in = strdup(optarg);
+				break;
+			case 'c':
+				stream.context_sz = atoi(optarg);
+
+				/* TODO: validate context_sz */
+				DBG("Context size: %d\n", stream.context_sz);
+				break;
+			case 'C':
+				stream.cycle_accurate = 1;
+				DBG("Forcing cycle-accurate trace mode\n");
+				break;
+			default:
+				ERR("Unknown argument: %c\n", c);
+		}
+	}
+
+	if (argc != optind || !file_in) {
+		ERR("Fix your arguments, for more details check the code\n");
 		exit(EXIT_FAILURE);
 	}
 
-	file_in = argv[1];
 	DBG("Reading %s\n", file_in);
 
 	r = stat(file_in, &sb);
@@ -51,7 +86,10 @@ int main(int argc, const char **argv)
 	}
 	fclose(f);
 
-	stream_decode(buffer_in, buffer_len);
+	stream.buffer = buffer_in;
+	stream.buffer_len = buffer_len;
+
+	stream_decode(&stream);
 
 	return 0;
 }
