@@ -1,4 +1,4 @@
-CFLAGS := -g3 -O0 -Wall
+CFLAGS := -g3 -O2 -Wall
 LDFLAGS :=
 SRCS := etmtest.c stream.c etm_v3.c tracer.c
 OBJS := $(SRCS:.c=.o)
@@ -6,14 +6,21 @@ OBJS := $(SRCS:.c=.o)
 CC ?= $(CROSS)gcc
 LD ?= $(CROSS)ld
 
-all: etmtest
+DESTDIR ?= $(HOME)
 
-etmtest: $(OBJS)
+all: etm2human
+
+etm2human: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
 %.o: %.c etmtest.h stream.h tracer.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f $(OBJS) etmtest
+	rm -f $(OBJS) etm2human
 
+install:
+	cp etm2human $(DESTDIR)/bin
+	chmod 0755 $(DESTDIR)/bin/etm2human
+
+.PHONY: install clean all
