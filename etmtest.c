@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include "output.h"
 #include "stream.h"
@@ -14,10 +15,12 @@ unsigned int verbosity;
 static const char *file_in;
 static unsigned char *buffer_in;
 static int buffer_len;
+static int hex_input;
 static struct stream stream;
 
 static const struct option options[] = {
 	{ "input",			1, 0, 'i' },
+	{ "hex-input",			1, 0, 'h' },
 	{ "context",			1, 0, 'c' },
 	{ "force-cycle-accurate",	0, 0, 'C' },
 	{ "debug",			1, 0, 'D' },
@@ -25,14 +28,78 @@ static const struct option options[] = {
 	{ NULL,				0, 0, 0   },
 };
 
-static const char *optstr = "i:c:CRD:";
+static const char *optstr = "i:h:c:CRD:";
+
+int read_hex(void)
+{
+	FILE *f;
+	unsigned char *p = buffer_in;
+	int i = 0;
+
+	f = fopen(file_in, "r");
+	while (!feof(f)) {
+		unsigned int c;
+		int r;
+
+		r = fscanf(f, "%02x", &c);
+		if (r != 1) {
+			if (feof(f)) break;
+
+			ERR("Can't read from %s: %m\n", file_in);
+			return -1;
+		}
+
+#if 0
+		/* fix formatter's stuff */
+		if (i & 1)
+			p[i] = (unsigned char)c;
+		else {
+			if (c & 1) {
+				ERR("Got trace source ID, i=%d, c=%02x\n", i, c);
+				exit(EXIT_FAILURE);
+			}
+
+			p[i] = (unsigned char)c | (p[ (i & ~0xf) + 0xf ] & (i >> 2));
+		}
+
+		DBG("%02x", p[i]);
+#endif
+		/* reverse bytes in an incorrectly acquired trace */
+		if (stream.reverse)
+			p[(i & ~3) + 3 - (i & 3)] = (unsigned char)c;
+		else
+			p[i] = (unsigned char)c;
+		i++;
+	}
+	fclose(f);
+
+	return 0;
+}
+
+int read_raw(void)
+{
+	int fd;
+
+	fd = open(file_in, O_RDONLY);
+	if (fd == -1) {
+		ERR("Can't read from %s: %m\n", file_in);
+		return -1;
+	}
+
+	if (read(fd, buffer_in, buffer_len) != buffer_len) {
+		ERR("Problem reading from %s: %m\n", file_in);
+		return -1;
+	}
+
+	close(fd);
+
+	return 0;
+}
 
 int main(int argc, char *const argv[])
 {
-	FILE *f;
 	struct stat sb;
-	int r, loptidx, c, i = 0;
-	unsigned char *p;
+	int r, loptidx, c;
 
 	for (;;) {
 		c = getopt_long(argc, argv, optstr, options, &loptidx);
@@ -40,6 +107,8 @@ int main(int argc, char *const argv[])
 			break;
 
 		switch (c) {
+			case 'h':
+				hex_input++;
 			case 'i':
 				file_in = strdup(optarg);
 				break;
@@ -80,44 +149,13 @@ int main(int argc, char *const argv[])
 	}
 
 	buffer_len = sb.st_size / 2 + 1;
-	p = buffer_in = malloc(buffer_len);
+	buffer_in = malloc(buffer_len);
 	memset(buffer_in, 0, buffer_len);
 
-	f = fopen(file_in, "r");
-	while (!feof(f)) {
-		unsigned int c;
-
-		r = fscanf(f, "%02x", &c);
-		if (r != 1) {
-			if (feof(f)) break;
-
-			ERR("Can't read from %s: %m\n", file_in);
-			exit(EXIT_FAILURE);
-		}
-
-#if 0
-		/* fix formatter's stuff */
-		if (i & 1)
-			p[i] = (unsigned char)c;
-		else {
-			if (c & 1) {
-				ERR("Got trace source ID, i=%d, c=%02x\n", i, c);
-				exit(EXIT_FAILURE);
-			}
-
-			p[i] = (unsigned char)c | (p[ (i & ~0xf) + 0xf ] & (i >> 2));
-		}
-
-		DBG("%02x", p[i]);
-#endif
-		/* reverse bytes in an incorrectly acquired trace */
-		if (stream.reverse)
-			p[(i & ~3) + 3 - (i & 3)] = (unsigned char)c;
-		else
-			p[i] = (unsigned char)c;
-		i++;
-	}
-	fclose(f);
+	if (hex_input)
+		read_hex();
+	else
+		read_raw();
 
 	stream.buffer = buffer_in;
 	stream.buffer_len = buffer_len;
