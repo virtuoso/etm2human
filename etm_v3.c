@@ -70,15 +70,15 @@ DECL_DECODE_FN(branch_address)
 		addr |= (stream[idx] & 0x07) << 29;
 
 	addr &= 0xfffffffc;
-	DBG("----- got branch address: %x\n\tpacket: ", addr);
+	pdbg("----- got branch address: %x\n\tpacket: ", addr);
 	for (i = 0; i <= idx; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
 	return idx + 1;
 }
 
-FALLBACK_DECODE_FN(alignment_sync);
+__FALLBACK_DECODE_FN(alignment_sync);
 
 DECL_DECODE_FN(cycle_count)
 {
@@ -94,10 +94,10 @@ DECL_DECODE_FN(cycle_count)
 
 	if (idx == 5)
 		cycle_count |= (stream[idx] & 0x0f) << 28;
-	DBG("----- got cycle count: %d\n\tpacket: ", cycle_count);
+	pdbg("----- got cycle count: %d\n\tpacket: ", cycle_count);
 	for (i = 0; i <= idx; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
 	return idx + 1;
 }
@@ -118,18 +118,18 @@ DECL_DECODE_FN(isync)
 	for (i = 0, idx = 1; i < s->context_sz; i++, idx++)
 		ctxid |= stream[idx] << (8 * i);
 
-	DBG("----- got context id: %x\n", ctxid);
+	pdbg("----- got context id: %x\n", ctxid);
 
 	infobyte = stream[idx++];
-	DBG("----- got infobyte: %x\n", infobyte);
+	pdbg("----- got infobyte: %x\n", infobyte);
 
 	for (i = 0; i < 4; i++, idx++)
 		addr |= stream[idx] << (8 * i);
 
-	DBG("----- got address: %x\n\t", addr);
+	pdbg("----- got address: %x\n\t", addr);
 	for (i = 0; i < idx; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
 	return idx;
 }
@@ -143,16 +143,16 @@ DECL_DECODE_FN(ooo_data)
 
 	sz = (stream[0] & 0xc) >> 2;
 	tag = (stream[0] & 0x60) >> 5;
-	for (idx = 0; idx < sz; idx++)
-		data |= stream[idx + 1] << (8 * idx);
+	for (i = 0, idx = 1; i < sz; i++, idx++)
+		data |= stream[idx] << (8 * i);
 
-	DBG("----- got data: %x [size=%d, tag=%x]\n\tpacket: ", data,
+	pdbg("----- got data: %x [size=%d, tag=%x]\n\tpacket: ", data,
 			sz, tag);
-	for (i = 0; i < sz + 1; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+	for (i = 0; i < idx; i++)
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
-	return idx + 1;
+	return idx;
 }
 
 FALLBACK_DECODE_FN(store_failed);
@@ -164,6 +164,7 @@ DECL_DECODE_FN(isync_cycle)
 	uint32_t addr = 0;
 	uint32_t cycle_count = 0;
 
+	pdbg("===== trace begins here =====\n");
 	for (i = 0, idx = 1; i < 4; i++, idx++) {
 		cycle_count |= (stream[idx] & 0x7f) << (7 * i);
 
@@ -173,41 +174,71 @@ DECL_DECODE_FN(isync_cycle)
 
 	if (idx == 5)
 		cycle_count |= (stream[idx] & 0x0f) << 28;
-	DBG("----- got cycle count: %d\n", cycle_count);
+	pdbg("----- got cycle count: %d\n", cycle_count);
 
-	for (i = 0; i < s->context_sz; i++, idx++)
+	for (i = 0, idx++; i < s->context_sz; i++, idx++)
 		ctxid |= stream[idx] << (8 * i);
 
-	DBG("----- got context id: %x\n", ctxid);
+	pdbg("----- got context id: %x\n", ctxid);
 
 	infobyte = stream[idx++];
-	DBG("----- got infobyte: %x\n", infobyte);
+	pdbg("----- got infobyte: %x\n", infobyte);
+
+	if ((infobyte & 0x9f) != 0x9) {
+		pdbg("invalid infobyte, skipping\n");
+		return 0;
+	}
 
 	for (i = 0; i < 4; i++, idx++)
 		addr |= stream[idx] << (8 * i);
 
-	DBG("----- got address: %x\n\t", addr);
+	pdbg("----- got address: %x\n\t", addr);
 	for (i = 0; i < idx; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
 	return idx;
 }
 
-FALLBACK_DECODE_FN(ooo_placehldr);
+DECL_DECODE_FN(ooo_placehldr)
+{
+	int idx = 0, i;
+	uint32_t addr = 0;
+
+	if (stream[0] & 0x20) {
+		for (idx = 1; idx < 5; idx++) {
+			addr |= (stream[idx] & 0x7f) << (7 * (idx - 1));
+
+			if (!(stream[idx] & 0x80))
+				break;
+		}
+
+		if (idx == 5)
+			addr |= (stream[idx] & 0x0f) << 28;
+		pdbg("----- got address: %x\n\tpacket: ", addr);
+	} else
+		pdbg("----- no address given\n\tpacket: ");
+
+	for (i = 0; i <= idx; i++)
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
+
+	return idx + 1;
+}
+
 FALLBACK_DECODE_FN(reserved0);
 FALLBACK_DECODE_FN(reserved1);
 FALLBACK_DECODE_FN(reserved2);
 
 DECL_DECODE_FN(normal_data) /* XXX: assumes address only tracing */
 {
-	int idx = 1;
+	int idx = 0;
 	uint32_t addr = 0;
 	uint32_t data = 0;
 
 	/* is data address included? */
 	if (stream[0] & 0x20 /* && s->do_data_address */) {
-		for (; idx < 5; idx++) {
+		for (idx = 1; idx < 5; idx++) {
 			addr |= (stream[idx] & 0x7f) << (7 * (idx - 1));
 
 			if (!(stream[idx] & 0x80))
@@ -217,11 +248,11 @@ DECL_DECODE_FN(normal_data) /* XXX: assumes address only tracing */
 		if (idx == 5)
 			addr |= (stream[idx] & 0x0f) << 28;
 
-		DBG("----- got data address: %x\n", addr);
+		pdbg("----- got data address: %x\n", addr);
 	} else
-		DBG("----- data address not included\n");
+		pdbg("----- data address not included\n");
 
-	return idx;
+	return idx + 1;
 }
 
 FALLBACK_DECODE_FN(reserved3);
@@ -237,10 +268,10 @@ DECL_DECODE_FN(context_id)
 	for (idx = 1; idx < s->context_sz + 1; idx++)
 		ctxid |= stream[idx] << (8 * (idx - 1));
 
-	DBG("----- got context id: %x\n\tpacket: ", ctxid);
+	pdbg("----- got context id: %x\n\tpacket: ", ctxid);
 	for (i = 0; i < idx; i++)
-		DBG("%02x", stream[i]);
-	DBG("\n");
+		pdbg("%02x", stream[i]);
+	pdbg("\n");
 
 	return idx;
 }
@@ -268,7 +299,7 @@ static int ph_ncycacc_do(const pkt_t *stream, struct stream *s,
 		case 0x80: /* format 1 */
 			p->n_atoms = (stream[0] & 0x40) >> 6;
 			p->e_atoms = (stream[0] & 0x3c) >> 2;
-			DBG("\tformat 1 p-header [e=%d n=%d]\n",
+			pdbg("\tformat 1 p-header [e=%d n=%d]\n",
 					p->e_atoms, p->n_atoms);
 			break;
 
@@ -281,12 +312,12 @@ static int ph_ncycacc_do(const pkt_t *stream, struct stream *s,
 				p->e_atoms++; /* push_e_atom */
 			else
 				p->n_atoms++; /* push_n_atom */
-			DBG("\tformat 2 p*-header [e=%d n=%d]\n",
+			pdbg("\tformat 2 p*-header [e=%d n=%d]\n",
 					p->e_atoms, p->n_atoms);
 			break;
 
 		default:
-			DBG("\tWTF\n");
+			pdbg("\tWTF\n");
 	}
 
 	return 1;
@@ -298,6 +329,9 @@ DECL_PKTTYPE(0xa3, 0x80, p_header_ca_format1, 3);
 DECL_PKTTYPE(0xf3, 0x82, p_header_ca_format2, 3);
 DECL_PKTTYPE(0xa3, 0xa0, p_header_ca_format3, 3);
 DECL_PKTTYPE(0xfb, 0x92, p_header_ca_format4, 3);
+DECL_PKTTYPE(0xfd, 0x9a, p_header_ca_reserved0, 3);
+DECL_PKTTYPE(0xe3, 0xa2, p_header_ca_reserved1, 3);
+DECL_PKTTYPE(0xc3, 0xc2, p_header_ca_reserved2, 3);
 
 static struct pkttype *pheaders_ca[] = {
 	&PKTTYPE_NAME(p_header_ca_format0, 3),
@@ -305,14 +339,20 @@ static struct pkttype *pheaders_ca[] = {
 	&PKTTYPE_NAME(p_header_ca_format2, 3),
 	&PKTTYPE_NAME(p_header_ca_format3, 3),
 	&PKTTYPE_NAME(p_header_ca_format4, 3),
+	&PKTTYPE_NAME(p_header_ca_reserved0, 3),
+	&PKTTYPE_NAME(p_header_ca_reserved1, 3),
+	&PKTTYPE_NAME(p_header_ca_reserved2, 3),
 	NULL,
 };
 
-FALLBACK_DECODE_FN(p_header_ca_format0);
-FALLBACK_DECODE_FN(p_header_ca_format1);
-FALLBACK_DECODE_FN(p_header_ca_format2);
-FALLBACK_DECODE_FN(p_header_ca_format3);
-FALLBACK_DECODE_FN(p_header_ca_format4);
+__FALLBACK_DECODE_FN(p_header_ca_format0);
+__FALLBACK_DECODE_FN(p_header_ca_format1);
+__FALLBACK_DECODE_FN(p_header_ca_format2);
+__FALLBACK_DECODE_FN(p_header_ca_format3);
+__FALLBACK_DECODE_FN(p_header_ca_format4);
+__FALLBACK_DECODE_FN(p_header_ca_reserved0);
+__FALLBACK_DECODE_FN(p_header_ca_reserved1);
+__FALLBACK_DECODE_FN(p_header_ca_reserved2);
 
 static int ph_cycacc_do(const pkt_t *stream, struct stream *s,
 		struct p_header *p)
@@ -324,7 +364,7 @@ static int ph_cycacc_do(const pkt_t *stream, struct stream *s,
 
 	for (i = 0; pheaders_ca[i]; i++)
 		if ((c & pheaders_ca[i]->mask) == pheaders_ca[i]->val) {
-			DBG("## type: %s\n", pheaders_ca[i]->name);
+			pdbg("## type: %s\n", pheaders_ca[i]->name);
 			break;
 		}
 
@@ -349,4 +389,20 @@ DECL_DECODE_FN(p_header)
 }
 
 struct pkttype **pkttypes = pkttypes_v3;
+
+int find_beginning(struct stream *s)
+{
+	int i, p;
+
+	for (i = 0; i < s->buffer_len; i++) {
+		p = DECODE_FN_NAME(isync_cycle)(&s->buffer[i], s);
+		if (p != 0) {
+			s->state++; /* SST_INSYNC */
+			dbg(DBG_STREAM, "======= trace start found at %d ========\n", i);
+			return i;
+		}
+	}
+
+	return -1;
+}
 

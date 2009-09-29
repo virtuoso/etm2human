@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -7,6 +8,8 @@
 #include <getopt.h>
 #include "output.h"
 #include "stream.h"
+
+unsigned int verbosity;
 
 static const char *file_in;
 static unsigned char *buffer_in;
@@ -17,16 +20,18 @@ static const struct option options[] = {
 	{ "input",			1, 0, 'i' },
 	{ "context",			1, 0, 'c' },
 	{ "force-cycle-accurate",	0, 0, 'C' },
+	{ "debug",			1, 0, 'D' },
+	{ "reverse",			0, 0, 'R' },
 	{ NULL,				0, 0, 0   },
 };
 
-static const char *optstr = "i:c:C";
+static const char *optstr = "i:c:CRD:";
 
 int main(int argc, char *const argv[])
 {
 	FILE *f;
 	struct stat sb;
-	int r, loptidx, c;
+	int r, loptidx, c, i = 0;
 	unsigned char *p;
 
 	for (;;) {
@@ -47,6 +52,14 @@ int main(int argc, char *const argv[])
 			case 'C':
 				stream.cycle_accurate = 1;
 				DBG("Forcing cycle-accurate trace mode\n");
+				break;
+			case 'R':
+				stream.reverse = 1;
+				break;
+			case 'D':
+				verbosity = atoi(optarg);
+				verbosity &= DBG_MASK;
+				DBG("Debug verbosity set to %d\n", verbosity);
 				break;
 			default:
 				ERR("Unknown argument: %c\n", c);
@@ -82,14 +95,37 @@ int main(int argc, char *const argv[])
 			exit(EXIT_FAILURE);
 		}
 
-		*p++ = (unsigned char)c;
+#if 0
+		/* fix formatter's stuff */
+		if (i & 1)
+			p[i] = (unsigned char)c;
+		else {
+			if (c & 1) {
+				ERR("Got trace source ID, i=%d, c=%02x\n", i, c);
+				exit(EXIT_FAILURE);
+			}
+
+			p[i] = (unsigned char)c | (p[ (i & ~0xf) + 0xf ] & (i >> 2));
+		}
+
+		DBG("%02x", p[i]);
+#endif
+		/* reverse bytes in an incorrectly acquired trace */
+		if (stream.reverse)
+			p[(i & ~3) + 3 - (i & 3)] = (unsigned char)c;
+		else
+			p[i] = (unsigned char)c;
+		i++;
 	}
 	fclose(f);
 
 	stream.buffer = buffer_in;
 	stream.buffer_len = buffer_len;
+	stream.state++; /* -> SST_READ */
 
 	stream_decode(&stream);
+	if (stream.state == SST_DECODED)
+		SAY("Trace stream decoding commenced.\n");
 
 	return 0;
 }
