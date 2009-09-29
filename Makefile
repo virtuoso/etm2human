@@ -9,11 +9,10 @@ LD ?= $(CROSS)ld
 all: etmtest
 
 etmtest: $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+
 %.o: %.c etmtest.h stream.h tracer.h
 	$(CC) $(CFLAGS) -o $@ -c $<
-
-korpus: $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
 clean:
 	rm -f $(OBJS) etmtest
