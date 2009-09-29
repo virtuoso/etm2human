@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h> /* for printfs and stderrs */
 #include "output.h"
+#include "tracer.h"
 #include "stream.h"
 #include "etmproto.h"
 
@@ -56,21 +57,26 @@ static struct pkttype *pkttypes_v3[] = {
 
 DECL_DECODE_FN(branch_address)
 {
-	int idx, i;
+	int idx, i, bsz = 0;
 	uint32_t addr = 0;
 
 	for (idx = 0; idx < 4; idx++) {
 		addr |= (stream[idx] & 0x7f) << (7 * idx + 1);
+		bsz += 7;
 
 		if (!(stream[idx] & 0x80))
 			break;
 	}
 
-	if (idx == 4)
+	if (idx == 4) {
 		addr |= (stream[idx] & 0x07) << 29;
+		bsz = 31;
+	}
 
 	addr &= 0xfffffffc;
 	pdbg("----- got branch address: %x\n\tpacket: ", addr);
+
+	tracer_branch(s->tracer, addr, bsz);
 	for (i = 0; i <= idx; i++)
 		pdbg("%02x", stream[i]);
 	pdbg("\n");
@@ -196,6 +202,9 @@ DECL_DECODE_FN(isync_cycle)
 	for (i = 0; i < idx; i++)
 		pdbg("%02x", stream[i]);
 	pdbg("\n");
+
+	if (s->state == SST_DECODING)
+		tracer_sync(s->tracer, addr, cycle_count, ctxid);
 
 	return idx;
 }
@@ -346,9 +355,47 @@ static struct pkttype *pheaders_ca[] = {
 };
 
 __FALLBACK_DECODE_FN(p_header_ca_format0);
-__FALLBACK_DECODE_FN(p_header_ca_format1);
-__FALLBACK_DECODE_FN(p_header_ca_format2);
-__FALLBACK_DECODE_FN(p_header_ca_format3);
+
+DECL_DECODE_FN(p_header_ca_format1)
+{
+	int i, _e, _n;
+
+	_e = (stream[0] & 0x1c) >> 2;
+	_n = (stream[0] & 0x40) >> 6;
+
+	for (i = 0; i < _e; i++)
+		tracer_add_insn(s->tracer, 1, 1);
+	for (i = 0; i < _n; i++)
+		tracer_add_insn(s->tracer, 0, 1);
+
+	return 1;
+}
+
+DECL_DECODE_FN(p_header_ca_format2)
+{
+	int i;
+
+	tracer_next_cycle(s->tracer, 1);
+	for (i = 3; i > 1; i--)
+		tracer_add_insn(s->tracer, !!(stream[0] & (1 << i)), 0);
+
+	return 1;
+}
+
+DECL_DECODE_FN(p_header_ca_format3)
+{
+	int _w, _e;
+
+	_w = (stream[0] & 0x1c) >> 2;
+	_e = (stream[0] & 0x40) >> 6;
+
+	tracer_next_cycle(s->tracer, _w);
+	if (_e)
+		tracer_add_insn(s->tracer, 1, 0);
+
+	return 1;
+}
+
 __FALLBACK_DECODE_FN(p_header_ca_format4);
 __FALLBACK_DECODE_FN(p_header_ca_reserved0);
 __FALLBACK_DECODE_FN(p_header_ca_reserved1);

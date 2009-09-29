@@ -121,7 +121,7 @@ int main(int argc, char *const argv[])
 
 	stream.buffer = buffer_in;
 	stream.buffer_len = buffer_len;
-	stream.state++; /* -> SST_READ */
+	stream.state = SST_READ; /* -> SST_READ */
 
 	stream_decode(&stream);
 	if (stream.state == SST_DECODED)

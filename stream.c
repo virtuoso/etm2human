@@ -1,6 +1,8 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "output.h"
+#include "tracer.h"
 #include "stream.h"
 #include "etmproto.h"
 
@@ -17,12 +19,14 @@ void stream_decode(struct stream *stream)
 			cur = 0;
 			stream->state++; /* -> SST_INSYNC */
 		}
-	} else if (stream != SST_INSYNC) {
+	} else if (stream->state != SST_INSYNC) {
 		ERR("Bad stream state (%d), exiting.\n", stream->state);
 		return;
 	}
 
 	stream->state++; /* -> SST_DECODING */
+	stream->tracer = tracer_init();
+
 	for (; cur < stream->buffer_len;) {
 		int lastincycle;
 		int res;
@@ -61,6 +65,8 @@ void stream_decode(struct stream *stream)
 		}
 	}
 	stream->state++; /* SST_DECODED */
+	tracer_flush(stream->tracer);
+	tracer_done(stream->tracer);
 
 	dbg(DBG_STREAM, "\n");
 }

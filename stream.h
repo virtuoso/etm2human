@@ -11,6 +11,7 @@ enum {
 };
 
 struct stream {
+	struct tracer *tracer;
 	const unsigned char *buffer;
 	int buffer_len;
 	int cycle_accurate:1;
