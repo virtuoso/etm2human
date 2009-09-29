@@ -353,7 +353,12 @@ static struct pkttype *pheaders_ca[] = {
 	NULL,
 };
 
-__FALLBACK_DECODE_FN(p_header_ca_format0);
+DECL_DECODE_FN(p_header_ca_format0)
+{
+	tracer_next_cycle(s->tracer, 1);
+
+	return 1;
+}
 
 DECL_DECODE_FN(p_header_ca_format1)
 {
@@ -376,7 +381,7 @@ DECL_DECODE_FN(p_header_ca_format2)
 
 	tracer_next_cycle(s->tracer, 1);
 	for (i = 3; i > 1; i--)
-		tracer_add_insn(s->tracer, !!(stream[0] & (1 << i)), 0);
+		tracer_add_insn(s->tracer, !(stream[0] & (1 << i)), 0);
 
 	return 1;
 }
@@ -395,7 +400,13 @@ DECL_DECODE_FN(p_header_ca_format3)
 	return 1;
 }
 
-__FALLBACK_DECODE_FN(p_header_ca_format4);
+DECL_DECODE_FN(p_header_ca_format4)
+{
+	tracer_add_insn(s->tracer, !(stream[0] & 4), 0);
+
+	return 1;
+}
+
 __FALLBACK_DECODE_FN(p_header_ca_reserved0);
 __FALLBACK_DECODE_FN(p_header_ca_reserved1);
 __FALLBACK_DECODE_FN(p_header_ca_reserved2);
