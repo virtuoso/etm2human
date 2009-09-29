@@ -31,6 +31,7 @@ struct tracer {
 
 struct tracer *tracer_init(void);
 void tracer_done(struct tracer *t);
+void tracer_flush(struct tracer *t);
 void tracer_sync(struct tracer *t, uint32_t addr, int cycle, uint32_t ctxid);
 void tracer_next_cycle(struct tracer *t, int n);
 void tracer_add_insn(struct tracer *t, int cond, int cycles);

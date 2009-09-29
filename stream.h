@@ -20,5 +20,7 @@ struct stream {
 	int state;
 };
 
+void stream_decode(struct stream *stream);
+
 #endif /* __STREAM_H__ */
 

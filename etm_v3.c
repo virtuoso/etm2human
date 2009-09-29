@@ -243,7 +243,6 @@ DECL_DECODE_FN(normal_data) /* XXX: assumes address only tracing */
 {
 	int idx = 0;
 	uint32_t addr = 0;
-	uint32_t data = 0;
 
 	/* is data address included? */
 	if (stream[0] & 0x20 /* && s->do_data_address */) {

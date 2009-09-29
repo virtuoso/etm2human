@@ -9,7 +9,6 @@
 void stream_decode(struct stream *stream)
 {
 	int cur, i;
-	int percycle = 0;
 
 	if (stream->state == SST_READ) {
 		stream->state++; /* -> SST_SYNCING */
@@ -28,14 +27,10 @@ void stream_decode(struct stream *stream)
 	stream->tracer = tracer_init();
 
 	for (; cur < stream->buffer_len;) {
-		int lastincycle;
 		int res;
 		unsigned char c = stream->buffer[cur];
 
 		dbg(DBG_STREAM, "# Got %02x [off=%d]:\n", c, cur);
-
-		lastincycle = !(c & 0x80);
-		percycle += !lastincycle;
 
 		for (i = 0; pkttypes[i]; i++) {
 			if ((c & pkttypes[i]->mask) == pkttypes[i]->val) {
@@ -59,10 +54,6 @@ void stream_decode(struct stream *stream)
 		}
 
 		cur += res;
-		if (lastincycle) {
-			//DBG("--- packets in this cycle: %d\n", percycle);
-			percycle = 0;
-		}
 	}
 	stream->state++; /* SST_DECODED */
 	tracer_flush(stream->tracer);
