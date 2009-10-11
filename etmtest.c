@@ -48,7 +48,7 @@ void usage(void)
 				options[i].val, options[i].name, optdesc[i]);
 }
 
-static const char *optstr = "i:h:c:CRD:";
+static const char *optstr = "i:H:c:CRD:h";
 
 int read_hex(void)
 {
