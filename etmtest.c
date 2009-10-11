@@ -20,13 +20,33 @@ static struct stream stream;
 
 static const struct option options[] = {
 	{ "input",			1, 0, 'i' },
-	{ "hex-input",			1, 0, 'h' },
+	{ "hex-input",			1, 0, 'H' },
 	{ "context",			1, 0, 'c' },
 	{ "force-cycle-accurate",	0, 0, 'C' },
 	{ "debug",			1, 0, 'D' },
 	{ "reverse",			0, 0, 'R' },
+	{ "help",			0, 0, 'h' },
 	{ NULL,				0, 0, 0   },
 };
+
+static const char *optdesc[] = {
+	"specify binary trace data input file",
+	"specify hex trace data input file",
+	"context ID width in the trace",
+	"trace is cycle-accurate",
+	"turn on debugging of certain parts of etm2human",
+	"for a hex input, reverse the byte order",
+	"display this help text"
+};
+
+void usage(void)
+{
+	int i;
+
+	for (i = 0; options[i].name; i++)
+		fprintf(stderr, "-%c, --%s\n\t%s\n",
+				options[i].val, options[i].name, optdesc[i]);
+}
 
 static const char *optstr = "i:h:c:CRD:";
 
@@ -107,7 +127,7 @@ int main(int argc, char *const argv[])
 			break;
 
 		switch (c) {
-			case 'h':
+			case 'H':
 				hex_input++;
 			case 'i':
 				file_in = strdup(optarg);
@@ -130,13 +150,17 @@ int main(int argc, char *const argv[])
 				verbosity &= DBG_MASK;
 				DBG("Debug verbosity set to %d\n", verbosity);
 				break;
+			case 'h':
+				usage();
+				exit(EXIT_SUCCESS);
 			default:
 				ERR("Unknown argument: %c\n", c);
 		}
 	}
 
 	if (argc != optind || !file_in) {
-		ERR("Fix your arguments, for more details check the code\n");
+		ERR("Invalid arguments or missing input file.\n");
+		usage();
 		exit(EXIT_FAILURE);
 	}
 
