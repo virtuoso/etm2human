@@ -1,0 +1,6 @@
+etm2human is a decoder for trace data output by Embedded Trace Macrocells
+(ETM) as specified by ARM's ETM architecture documents. [1]
+
+Currently, version 3 of the trace protocol is supported.
+
+[1]: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ihi0014o/index.html
