@@ -13,7 +13,7 @@ all: etm2human
 etm2human: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
-%.o: %.c etmtest.h stream.h tracer.h
+%.o: %.c etmtest.h stream.h tracer.h version.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:

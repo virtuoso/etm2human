@@ -7,10 +7,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include "version.h"
 #include "output.h"
 #include "stream.h"
 
 unsigned int verbosity;
+
+static const char *myname = "etm2human";
 
 static const char *file_in;
 static unsigned char *buffer_in;
@@ -164,6 +167,7 @@ int main(int argc, char *const argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	SAY("%s v%d\n", myname, ETM2H_VERSION);
 	DBG("Reading %s\n", file_in);
 
 	r = stat(file_in, &sb);
